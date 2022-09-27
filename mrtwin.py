@@ -23,7 +23,7 @@ def compute_quantile(child_stat, twin_stats):
 	return quantile
 
 
-def mrtrio(beta_e, se_e, beta_o, se_o, outcome_trait, par1_geno=None, par2_geno=None, child_geno=None,
+def mrtwin(beta_e, se_e, beta_o, se_o, outcome_trait, par1_geno=None, par2_geno=None, child_geno=None,
 			sib_genos=None, num_twins=999, mr_method='ivw'):
 	"""
 	Main external function for computing the MR-Trio p-value.
