@@ -1,6 +1,6 @@
 # MR-Twin
 
-This respository contains software for the MR-Twin paper ("Leveraging family data to design Mendelian Randomization that is provably robust to population stratification"). Please cite our paper e.g. as follows when using it in your work:
+This repository contains software for the MR-Twin paper ("Leveraging family data to design Mendelian Randomization that is provably robust to population stratification"). Please cite our paper e.g. as follows when using it in your work:
 
 [Citation forthcoming]
 
