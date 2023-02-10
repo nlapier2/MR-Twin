@@ -1,3 +1,4 @@
+import multiprocessing as mp
 import sys
 import generate_offspring
 import mr_functions
@@ -16,15 +17,60 @@ def compute_quantile(child_stat, twin_stats):
 
 	Returns
 	-----
-	quantile of child's test statistic among the twin statistics, a.k.a. the p-value
+	quantile of child's test statistic among the twin statistics, i.e. the p-value
 	"""
 	num_less = sum([child_stat <= stat for stat in twin_stats])
 	quantile = float(1 + num_less) / float(len(twin_stats) + 1)
 	return quantile
 
 
+def generate_twin_stats(i, beta_e, se_e, beta_o, se_o, outcome_trait, par1_geno, par2_geno, child_geno, 
+                        sib_genos, mr_method, mr_est):
+	"""
+	Internal function for generating digital twins and computing their MR-Twin statistics.
+
+	Args
+	-----
+	par1_geno: genotypes for one set of parents for the trios or duos
+	par2_geno: genotypes for the other set of parents for the trios
+	child_geno: genotypes for the children of the trios or single parents
+	sib_genos: genotypes for siblings in sibling mode
+	outcome_trait: list containing the outcome trait values for each child
+	beta_e: numpy array of beta-coefficient values
+			for genetic associations with the exposure trait
+	se_e:   numpy array of the standard error associated with
+			beta_e
+	beta_o: numpy array of the beta-coefficient values
+			for genetic association with the outcome
+			trait
+	se_o: numpy array of the standard error associated with
+			beta_o
+	mr_method: which MR method to compute the statistic based on
+				(ivw, egger, median, or mode)
+	mr_est: the MR estimate computed by a standard MR method
+	i: a simple index used for multiprocessing purposes
+
+	Returns
+	-----
+	The MR-Twin statistic for the simulated set of digital twins.
+	"""
+	counts_child_geno = None
+	if sib_genos is None:  # i.e. trio mode or parent-child duo mode
+		if par2_geno is not None:  # trio mode
+			twin_genos = generate_offspring.generate_offspring(par1_geno, par2_geno, 1)
+		else:  # parent-child duo mode
+			twin_genos, counts_child_geno = generate_offspring.generate_offspring_duo(
+				par1_geno, child_geno, counts_child_geno=counts_child_geno)
+		return mr_functions.compute_statistic(
+			beta_e, se_e, beta_o, se_o, twin_genos, outcome_trait, mr_method, mr_est)
+	else:
+		twin_genos = generate_offspring.generate_digital_sibs_shuf(sib_genos)
+		return mr_functions.compute_statistic_sib(
+			beta_e, se_e, beta_o, se_o, twin_genos, outcome_trait, mr_method, mr_est)
+
+
 def mrtwin(beta_e, se_e, beta_o, se_o, outcome_trait, par1_geno=None, par2_geno=None, child_geno=None,
-			sib_genos=None, num_twins=999, mr_method='ivw'):
+			sib_genos=None, num_twins=999, num_procs=1, mr_method='ivw'):
 	"""
 	Main external function for computing the MR-Trio p-value.
 
@@ -77,27 +123,16 @@ def mrtwin(beta_e, se_e, beta_o, se_o, outcome_trait, par1_geno=None, par2_geno=
 		mr_est, mr_se, mr_stat, mr_pval = mr_functions.mr_ivw(beta_e, se_e, beta_o, se_o)
 
 	# simulate digital twins, compute statistics for real & synthetic children/sibs, and get permuted p-value
-	twin_stats = []
+	with mp.Pool(processes = num_procs) as pool:
+		twin_stats = pool.starmap(generate_twin_stats, [(i, beta_e, se_e, beta_o, se_o, outcome_trait, 
+								par1_geno, par2_geno, child_geno, sib_genos, 
+								mr_method, mr_est) for i in range(num_twins)])
 	if sib_genos is None:  # trio mode or parent-child duo mode, depending on whether par2_geno is provided
 		real_stat = mr_functions.compute_statistic(
 			beta_e, se_e, beta_o, se_o, child_geno, outcome_trait, mr_method, mr_est)
-		for i in range(num_twins):
-			counts_child_geno = None
-			if par2_geno is not None:  # trio mode
-				twin_genos = generate_offspring.generate_offspring(par1_geno, par2_geno, 1)
-			else:  # parent-child duo mode
-				twin_genos, counts_child_geno = generate_offspring.generate_offspring_duo(
-					par1_geno, child_geno, counts_child_geno=counts_child_geno)
-			twin_stats.append(mr_functions.compute_statistic(
-				beta_e, se_e, beta_o, se_o, twin_genos, outcome_trait, mr_method, mr_est))
 	else:
 		real_stat = mr_functions.compute_statistic_sib(
 			beta_e, se_e, beta_o, se_o, sib_genos, outcome_trait, mr_method, mr_est)
-		# twin_prob_dict, count_dict = None, None
-		for i in range(num_twins):
-			twin_genos = generate_offspring.generate_digital_sibs_shuf(sib_genos)
-			twin_stats.append(mr_functions.compute_statistic_sib(
-				beta_e, se_e, beta_o, se_o, twin_genos, outcome_trait, mr_method, mr_est))
 	mrtwin_p_value = compute_quantile(real_stat, twin_stats)
 
 	# print and return results
