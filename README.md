@@ -2,7 +2,7 @@
 
 This repository contains software for the MR-Twin paper ("Leveraging family data to design Mendelian Randomization that is provably robust to population stratification"). Please cite our paper e.g. as follows when using it in your work:
 
-[Citation forthcoming]
+LaPierre, Nathan, Boyang Fu, Steven Turnbull, Eleazar Eskin, and Sriram Sankararaman. "Leveraging family data to design Mendelian Randomization that is provably robust to population stratification." *bioRxiv* (2023): 2023-01.
 
 For details on replicating the results of the paper, see our replication repo: https://github.com/nlapier2/MRTwin-replication
 
